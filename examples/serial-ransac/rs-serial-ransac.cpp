@@ -13,7 +13,7 @@
 #include <iostream>
 #include <iomanip>
 
-
+void handle_display(rs2::playback& playback, window& app, int* seek_pos);
 // Helper function for dispaying time conveniently
 std::string pretty_time(std::chrono::nanoseconds duration);
 // Helper function for rendering a seek bar
@@ -24,17 +24,13 @@ int main(int argc, char * argv[]) try
     // Create a simple OpenGL window for rendering:
     window app(1280, 720, "RealSense Record and Playback Example");
     ImGui_ImplGlfw_Init(app, false);
-
     // Declare a texture for the depth image on the GPU
     texture depth_image;
-
     // Declare frameset and frames which will hold the data from the camera
     rs2::frameset frames;
     rs2::frame depth;
-
     // Declare depth colorizer for pretty visualization of depth data
     rs2::colorizer color_map;
-
     auto pipe = std::make_shared<rs2::pipeline>();
     rs2::config cfg;
 
@@ -49,46 +45,8 @@ int main(int argc, char * argv[]) try
 
     // While application is running
     while(app) {
-        // Flags for displaying ImGui window
-        static const int flags = ImGuiWindowFlags_NoCollapse
-            | ImGuiWindowFlags_NoScrollbar
-            | ImGuiWindowFlags_NoSavedSettings
-            | ImGuiWindowFlags_NoTitleBar
-            | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_NoMove;
-
-        ImGui_ImplGlfw_NewFrame(1);
-        ImGui::SetNextWindowSize({ app.width(), app.height() });
-        ImGui::Begin("app", nullptr, flags);
-
-        // Set options for the ImGui buttons
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, { 1, 1, 1, 1 });
-        ImGui::PushStyleColor(ImGuiCol_Button, { 36 / 255.f, 44 / 255.f, 51 / 255.f, 1 });
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 40 / 255.f, 170 / 255.f, 90 / 255.f, 1 });
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 36 / 255.f, 44 / 255.f, 51 / 255.f, 1 });
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12);
-
-        ImGui::SetCursorPos({ app.width() / 2 - 100, 4 * app.height() / 5 + 50});
         rs2::playback playback = device.as<rs2::playback>();
-
-	if (playback.current_status() == RS2_PLAYBACK_STATUS_PLAYING) {
-            if(ImGui::Button(" pause\nplaying", { 50, 50 })) {
-                playback.pause();
-	    }
-        } else {
-            if(ImGui::Button("play", { 50, 50 })) {
-                playback.resume();
-	    }
-	}
-
-	// Render a seek bar for the player
-        float2 location = { app.width() / 4, 4 * app.height() / 5 + 110 };
-        draw_seek_bar(playback , &seek_pos, location, app.width() / 2);
-
-        ImGui::PopStyleColor(4);
-        ImGui::PopStyleVar();
-        ImGui::End();
-        ImGui::Render();
+	handle_display(playback, app, &seek_pos);
 
         if (pipe->poll_for_frames(&frames)) // Check if new frames are ready
         {
@@ -112,6 +70,46 @@ catch (const std::exception& e)
     return EXIT_FAILURE;
 }
 
+void handle_display(rs2::playback& playback, window& app, int* seek_pos) {
+    // Flags for displaying ImGui window
+    static const int flags = ImGuiWindowFlags_NoCollapse
+        | ImGuiWindowFlags_NoScrollbar
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoMove;
+
+    ImGui_ImplGlfw_NewFrame(1);
+    ImGui::SetNextWindowSize({ app.width(), app.height() });
+    ImGui::Begin("app", nullptr, flags);
+
+    // Set options for the ImGui buttons
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, { 1, 1, 1, 1 });
+    ImGui::PushStyleColor(ImGuiCol_Button, { 36 / 255.f, 44 / 255.f, 51 / 255.f, 1 });
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 40 / 255.f, 170 / 255.f, 90 / 255.f, 1 });
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 36 / 255.f, 44 / 255.f, 51 / 255.f, 1 });
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12);
+    ImGui::SetCursorPos({ app.width() / 2 - 100, 4 * app.height() / 5 + 50});
+
+    if (playback.current_status() == RS2_PLAYBACK_STATUS_PLAYING) {
+        if(ImGui::Button(" pause\nplaying", { 50, 50 })) {
+            playback.pause();
+        }
+    } else {
+        if(ImGui::Button("play", { 50, 50 })) {
+            playback.resume();
+        }
+    }
+
+    // Render a seek bar for the player
+    float2 location = { app.width() / 4, 4 * app.height() / 5 + 110 };
+    draw_seek_bar(playback , seek_pos, location, app.width() / 2);
+
+    ImGui::PopStyleColor(4);
+    ImGui::PopStyleVar();
+    ImGui::End();
+    ImGui::Render();
+}
 
 std::string pretty_time(std::chrono::nanoseconds duration)
 {
