@@ -23,34 +23,46 @@ int main(int argc, char * argv[]) try
 {
     // Create a simple OpenGL window for rendering:
     window app(1280, 720, "RealSense Record and Playback Example");
+    // Initialize IMGui GLFW binding.
     ImGui_ImplGlfw_Init(app, false);
-    // Declare a texture for the depth image on the GPU
+    // Declare a texture for displaying the depth image. 
     texture depth_image;
-    // Declare frameset and frames which will hold the data from the camera
+    // Coherent collcetion of frames. Depth and Color frames are separate entities.
     rs2::frameset frames;
     rs2::frame depth;
-    // Declare depth colorizer for pretty visualization of depth data
+    // Declare depth colorizer filter for pretty visualization of depth data.
     rs2::colorizer color_map;
     auto pipe = std::make_shared<rs2::pipeline>();
     rs2::config cfg;
-
     // Get recording file name.
     std::string file_name = argv[1];
     cfg.enable_device_from_file(file_name);
     pipe->start(cfg);
     rs2::device device = pipe->get_active_profile().get_device();
-
-    // Create a variable to control the seek bar
+    rs2::playback playback = device.as<rs2::playback>();
+    // Playback position.
     int seek_pos;
+
+    // Get Depth Unit.
+
 
     // While application is running
     while(app) {
-        rs2::playback playback = device.as<rs2::playback>();
 	handle_display(playback, app, &seek_pos);
-
-        if (pipe->poll_for_frames(&frames)) // Check if new frames are ready
+        
+	// Check if a frameset is available for processing.
+        if (pipe->poll_for_frames(&frames))
         {
-            depth = color_map.process(frames.get_depth_frame()); // Find and colorize the depth data for rendering
+	    // TODO: A colorizer is just a type of filter. Could we possibly create a RANSAC filter
+	    // This seems like best practice, but might be overkill for the project. Backburner for
+	    // now.
+	    rs2::depth_frame d_frame = frames.get_depth_frame();
+            auto width = d_frame.get_width();
+	    auto height = d_frame.get_height();
+	    auto depth_data = d_frame.get_data();
+	    std::cout << depth_data << "\n";
+
+            depth = color_map.process(d_frame); // Find and colorize the depth data for rendering
         }
 
 	if (depth) {	
