@@ -20,6 +20,7 @@
 #include "proc/processing-blocks-factory.h"
 #include "proc/colorizer.h"
 #include "proc/pointcloud.h"
+#include "proc/ransac-filter.h"
 #include "proc/threshold.h"
 #include "proc/disparity-transform.h"
 #include "proc/syncer-processing-block.h"
@@ -1870,6 +1871,11 @@ rs2_processing_block* rs2_create_colorizer(rs2_error** error) BEGIN_API_CALL
 }
 NOARGS_HANDLE_EXCEPTIONS_AND_RETURN(nullptr)
 
+rs2_processing_block* rs2_create_ransac_filter(rs2_error** error) BEGIN_API_CALL
+{
+    return new rs2_processing_block { ransac_filter::create() };
+}
+NOARGS_HANDLE_EXCEPTIONS_AND_RETURN(nullptr)
 
 rs2_processing_block* rs2_create_decimation_filter_block(rs2_error** error) BEGIN_API_CALL
 {

@@ -647,6 +647,28 @@ namespace rs2
             return block;
         }
     };
+    
+    class ransac_filter : public filter
+    {
+    public:
+        /**
+        * Create ransac processing block
+        */
+        ransac_filter() : filter(init(), 1) { }
+
+    private:
+        std::shared_ptr<rs2_processing_block> init()
+        {
+            rs2_error* e = nullptr;
+            auto block = std::shared_ptr<rs2_processing_block>(
+                rs2_create_ransac_filter(&e),
+                rs2_delete_processing_block);
+            error::handle(e);
+
+            return block;
+        }
+    };
+
 
     class colorizer : public filter
     {

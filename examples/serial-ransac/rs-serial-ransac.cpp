@@ -32,6 +32,7 @@ int main(int argc, char * argv[]) try
     rs2::frame depth;
     // Declare depth colorizer filter for pretty visualization of depth data.
     rs2::colorizer color_map;
+    rs2::ransac_filter ransac_filter;
     auto pipe = std::make_shared<rs2::pipeline>();
     rs2::config cfg;
     // Get recording file name.
@@ -57,12 +58,9 @@ int main(int argc, char * argv[]) try
 	    // This seems like best practice, but might be overkill for the project. Backburner for
 	    // now.
 	    rs2::depth_frame d_frame = frames.get_depth_frame();
-            auto width = d_frame.get_width();
-	    auto height = d_frame.get_height();
-	    auto depth_data = d_frame.get_data();
-	    std::cout << depth_data << "\n";
 
             depth = color_map.process(d_frame); // Find and colorize the depth data for rendering
+	    depth = ransac_filter.process(depth);
         }
 
 	if (depth) {	

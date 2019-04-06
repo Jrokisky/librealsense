@@ -13,6 +13,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/processing-blocks-factory.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/align.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/colorizer.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/ransac-filter.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/pointcloud.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/occlusion-filter.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-stream.cpp"
@@ -29,7 +30,8 @@ target_sources(${LRS_TARGET}
 
         "${CMAKE_CURRENT_LIST_DIR}/processing-blocks-factory.h"
         "${CMAKE_CURRENT_LIST_DIR}/align.h"
-        "${CMAKE_CURRENT_LIST_DIR}/colorizer.h"
+	"${CMAKE_CURRENT_LIST_DIR}/colorizer.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ransac-filter.h"
         "${CMAKE_CURRENT_LIST_DIR}/pointcloud.h"
         "${CMAKE_CURRENT_LIST_DIR}/occlusion-filter.h"
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-stream.h"

@@ -28,6 +28,14 @@ extern "C" {
 rs2_processing_block* rs2_create_colorizer(rs2_error** error);
 
 /**
+* Creates Ransac processing block.
+* This block will accept depth frames as input and replace them by depth frames with format RGB8
+* Non-depth frames are passed through
+* \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+*/
+rs2_processing_block* rs2_create_ransac_filter(rs2_error** error);
+
+/**
 * Creates Sync processing block. This block accepts arbitrary frames and output composite frames of best matches
 * Some frames may be released within the syncer if they are waiting for match for too long
 * Syncronization is done (mostly) based on timestamps so good hardware timestamps are a pre-condition
