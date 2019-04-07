@@ -3,7 +3,7 @@
 #  minimum required cmake version: 3.1.0
 cmake_minimum_required(VERSION 3.1.0)
 
-project(RealsenseExamplesSerialRansac)
+project(RealsenseExamplesRansac)
 
 # Save the command line compile commands in the build output
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
@@ -18,9 +18,9 @@ elseif(COMPILER_SUPPORTS_CXX0X)
 endif()
 
 if(BUILD_GRAPHICAL_EXAMPLES)
-    add_executable(rs-serial-ransac rs-serial-ransac.cpp ../example.hpp ../../third-party/imgui/imgui.cpp ../../third-party/imgui/imgui_draw.cpp ../../third-party/imgui/imgui_impl_glfw.cpp)
-    target_link_libraries(rs-serial-ransac ${DEPENDENCIES})
-    include_directories(rs-serial-ransac ../ ../../third-party/tclap/include ../../third-party/imgui)
-    set_target_properties (rs-serial-ransac PROPERTIES FOLDER "Examples")
-    install(TARGETS rs-serial-ransac RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    add_executable(rs-ransac rs-ransac.cpp ../example.hpp ../../third-party/imgui/imgui.cpp ../../third-party/imgui/imgui_draw.cpp ../../third-party/imgui/imgui_impl_glfw.cpp)
+    target_link_libraries(rs-ransac ${DEPENDENCIES})
+    include_directories(rs-ransac ../ ../../third-party/tclap/include ../../third-party/imgui)
+    set_target_properties (rs-ransac PROPERTIES FOLDER "Examples")
+    install(TARGETS rs-ransac RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

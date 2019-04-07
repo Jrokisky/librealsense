@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <unistd.h>
 
 void handle_display(rs2::playback& playback, window& app, int* seek_pos);
 // Helper function for dispaying time conveniently
@@ -29,9 +30,9 @@ int main(int argc, char * argv[]) try
     texture depth_image;
     // Coherent collcetion of frames. Depth and Color frames are separate entities.
     rs2::frameset frames;
-    rs2::frame depth;
-    // Declare depth colorizer filter for pretty visualization of depth data.
-    rs2::colorizer color_map;
+    rs2::frame d_frame, plane_highlighted, depth;
+    rs2::decimation_filter dec_filter;
+    dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 8.0f);
     rs2::ransac_filter ransac_filter;
     auto pipe = std::make_shared<rs2::pipeline>();
     rs2::config cfg;
@@ -44,27 +45,19 @@ int main(int argc, char * argv[]) try
     // Playback position.
     int seek_pos;
 
-    // Get Depth Unit.
-
-
     // While application is running
     while(app) {
 	handle_display(playback, app, &seek_pos);
         
 	// Check if a frameset is available for processing.
-        if (pipe->poll_for_frames(&frames))
-        {
-	    // TODO: A colorizer is just a type of filter. Could we possibly create a RANSAC filter
-	    // This seems like best practice, but might be overkill for the project. Backburner for
-	    // now.
-	    rs2::depth_frame d_frame = frames.get_depth_frame();
-
-            depth = color_map.process(d_frame); // Find and colorize the depth data for rendering
-	    depth = ransac_filter.process(depth);
+        if (pipe->poll_for_frames(&frames)) {
+	    d_frame = frames.get_depth_frame();
+    	    //depth = dec_filter.process(d_frame.as<rs2::depth_frame>());
+	    plane_highlighted = ransac_filter.process(d_frame);
         }
 
-	if (depth) {	
-            depth_image.render(depth, { app.width() * 0.25f, app.height() * 0.25f, app.width() * 0.5f, app.height() * 0.75f  });
+	if (plane_highlighted.is<rs2::video_frame>()) {	
+            depth_image.render(plane_highlighted, { app.width() * 0.25f, app.height() * 0.25f, app.width() * 0.5f, app.height() * 0.75f  });
 	}
     }
     return EXIT_SUCCESS;
