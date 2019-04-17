@@ -167,6 +167,7 @@ EXPORTS
     rs2_delete_processing_block
     rs2_create_sync_processing_block
     rs2_create_pointcloud
+    rs2_create_ransac_filter
     rs2_create_colorizer
     rs2_create_yuy_decoder
     rs2_create_threshold

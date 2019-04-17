@@ -12,7 +12,6 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
-#include <unistd.h>
 
 void handle_display(rs2::playback& playback, window& app, int* seek_pos);
 // Helper function for dispaying time conveniently
