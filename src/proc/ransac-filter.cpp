@@ -93,9 +93,9 @@ namespace librealsense {
     }
 
     float4 ransac_filter::generate_equation(const float3* points, int size) {
-	float3 ab;
-	float3 ac;
-	float3 pa;
+	float3 vector_ab;
+	float3 vector_ac;
+	float3 point_a;
 	// Ensure that the 3 points we're using for the plane generation are 
 	// not colinnear and their depths are not 0.
 	bool invalid = true;
@@ -108,38 +108,38 @@ namespace librealsense {
 	        c = rand() % (size-1);
 	    }
 
-	    pa = points[a];
-	    float3 pb = points[b];
-	    float3 pc = points[c];
+	    point_a = points[a];
+	    float3 point_b = points[b];
+	    float3 point_c = points[c];
 
 	    // Don't use holes in the image with depth of 0.0.
-	    if (pa.z < 0.01f) continue;
-	    if (pb.z < 0.01f) continue;
-	    if (pc.z < 0.01f) continue;
+	    if (point_a.z < 0.01f) continue;
+	    if (point_b.z < 0.01f) continue;
+	    if (point_c.z < 0.01f) continue;
 
 	    // Compute our vectors.
-	    ab = pb - pa;
-	    ac = pc - pa;
+	    vector_ab = point_b - point_a;
+	    vector_ac = point_c - point_a;
 
 	    // Ensure that the three points are not collinear by ensuring the 
 	    // vectors are not parallel. Parallel vectors will have a similar ratio
 	    // beween their components. Ex: vectora = 4 * vectorb (they are parallel)
-	    float ratio_x = ab.x / ac.x;
-	    float ratio_y = ab.y / ac.y;
-	    float ratio_z = ab.z / ac.z;
-	    bool eq_xy = fabs(ratio_x - ratio_y) < 0.01;
-	    bool eq_yz = fabs(ratio_y - ratio_z) < 0.01;
-	    bool eq_xz = fabs(ratio_x - ratio_z) < 0.01;
-	    invalid = eq_xy && eq_yz && eq_xz;
+	    float ratio_x = vector_ab.x / vector_ac.x;
+	    float ratio_y = vector_ab.y / vector_ac.y;
+	    float ratio_z = vector_ab.z / vector_ac.z;
+	    bool equal_xy = fabs(ratio_x - ratio_y) < 0.01;
+	    bool equal_yz = fabs(ratio_y - ratio_z) < 0.01;
+	    bool equal_xz = fabs(ratio_x - ratio_z) < 0.01;
+	    invalid = equal_xy && equal_yz && equal_xz;
 	} while(invalid);
 
 	// Compute the cross product of the vectors.
-	float cpx = ab.y * ac.z - ab.z * ac.y;
-	float cpy = ab.z * ac.x - ab.x * ac.z;
-	float cpz = ab.x * ac.y - ab.y * ac.x;
+	float cpx = vector_ab.y * vector_ac.z - vector_ab.z * vector_ac.y;
+	float cpy = vector_ab.z * vector_ac.x - vector_ab.x * vector_ac.z;
+	float cpz = vector_ab.x * vector_ac.y - vector_ab.y * vector_ac.x;
 
 	// Use the cross product and point a to find the constant in the plane equation.
-	float d = -(cpx * pa.x + cpy * pa.y + cpz * pa.z);
+	float d = -(cpx * point_a.x + cpy * point_a.y + cpz * point_a.z);
 
 	return float4 {cpx, cpy, cpz, d};
     }
