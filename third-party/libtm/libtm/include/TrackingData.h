@@ -229,7 +229,7 @@ namespace perc
             VelocimeterFrame() : temperature(0), sensorIndex(0), frameId(0) {};
             uint8_t sensorIndex;  /**< Zero based index of sensor with the same type within device         */
             uint32_t frameId;     /**< A running index of frames from every unique sensor, starting from 0 */
-            Axis angularVelocity; /**< X, Y, Z values of velocimeter, in radians/sec                       */
+            Axis translationalVelocity; /**< X, Y, Z values of velocimeter, in meters/sec                       */
             float temperature;    /**< Velocimeter temperature                                             */
         };
 
@@ -677,7 +677,7 @@ namespace perc
             float_t ppy;              /**< Vertical coordinate of the principal point of the image, as a pixel offset from the top edge                                           */
             float_t fx;               /**< Focal length of the image plane, as a multiple of pixel width                                                                          */
             float_t fy;               /**< Focal length of the image plane, as a multiple of pixel Height                                                                         */
-            uint32_t distortionModel; /**< Distortion model of the image: NONE = 0, MODIFIED_BROWN_CONRADY = 1, INVERSE_BROWN_CONRADY = 2, FTHETA = 3, KANNALA_BRANDT4 = 4        */
+            uint32_t distortionModel; /**< Distortion model of the image: F-THETA = 1, NONE (UNDISTORTED) = 3, KANNALA_BRANDT4 = 4                                                */
             float_t coeffs[5];        /**< Distortion coefficients                                                                                                                */
         };
 

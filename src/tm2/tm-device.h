@@ -62,6 +62,7 @@ namespace librealsense
         void stop() override;
         rs2_intrinsics get_intrinsics(const stream_profile& profile) const override;
         rs2_motion_device_intrinsic get_motion_intrinsics(const motion_stream_profile_interface& profile) const;
+        rs2_extrinsics get_extrinsics(const stream_profile_interface & profile, perc::SensorId & reference_sensor_id) const;
 
         // Tracking listener
         ////////////////////
@@ -92,7 +93,7 @@ namespace librealsense
 
         // Wheel odometer
         bool load_wheel_odometery_config(const std::vector<uint8_t>& odometry_config_buf) const ;
-        bool send_wheel_odometry(uint8_t wo_sensor_id, uint32_t frame_num, const float3& angular_velocity) const;
+        bool send_wheel_odometry(uint8_t wo_sensor_id, uint32_t frame_num, const float3& translational_velocity) const;
 
         enum async_op_state {
             _async_init     = 1 << 0,

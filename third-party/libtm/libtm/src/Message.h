@@ -450,7 +450,7 @@ namespace perc
         float_t flPpy;              /**< Vertical coordinate of the principal point of the image, as a pixel offset from the top edge                                    */
         float_t flFx;               /**< Focal length of the image plane, as a multiple of pixel width                                                                   */
         float_t flFy;               /**< Focal length of the image plane, as a multiple of pixel Height                                                                  */
-        uint32_t dwDistortionModel; /**< Distortion model of the image: NONE = 0, MODIFIED_BROWN_CONRADY = 1, INVERSE_BROWN_CONRADY = 2, FTHETA = 3, KANNALA_BRANDT4 = 4 */
+        uint32_t dwDistortionModel; /**< Distortion model of the image: F-THETA = 1, NONE (UNDISTORTED) = 3, KANNALA_BRANDT4 = 4 */
         float_t flCoeffs[5];        /**< Distortion coefficients                                                                                                         */
     } camera_intrinsics;
 
@@ -1336,9 +1336,9 @@ namespace perc
         uint32_t dwMetadataLength; /**< Metadata length in bytes (4 bytes)     */
         float_t flTemperature;     /**< velocimeter temperature                */
         uint32_t dwFrameLength;    /**< Length of frame below (12 bytes)       */
-        float_t flVx;              /**< X value of velocimeter, in radians/sec */
-        float_t flVy;              /**< Y value of velocimeter, in radians/sec */
-        float_t flVz;              /**< Z value of velocimeter, in radians/sec */
+        float_t flVx;              /**< X value of velocimeter, in meters/sec */
+        float_t flVy;              /**< Y value of velocimeter, in meters/sec */
+        float_t flVz;              /**< Z value of velocimeter, in meters/sec */
     } bulk_message_velocimeter_stream_metadata;
 
     /**
