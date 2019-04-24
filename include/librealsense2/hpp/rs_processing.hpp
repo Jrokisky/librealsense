@@ -651,10 +651,23 @@ namespace rs2
     class ransac_filter : public filter
     {
     public:
-        /**
-        * Create ransac processing block
-        */
-        ransac_filter() : filter(init(), 1) { }
+
+        ransac_filter(float iterations = 25.0, float distance_threshold = 0.05, float threshold_percent = 30.0) : filter(init(), 1) 
+	{ 
+	    set_option(RS2_OPTION_FILTER_MAGNITUDE, float(iterations));
+	    set_option(RS2_OPTION_MIN_DISTANCE, float(distance_threshold));
+	    set_option(RS2_OPTION_MAX_DISTANCE, float(threshold_percent));
+	}
+
+	ransac_filter(filter f) : filter(f)
+        {
+             rs2_error* e = nullptr;
+             if (!rs2_is_processing_block_extendable_to(f.get(), RS2_EXTENSION_RANSAC_FILTER, &e) && !e)
+             {
+                 _block.reset();
+             }
+             error::handle(e);
+        }
 
     private:
         std::shared_ptr<rs2_processing_block> init()

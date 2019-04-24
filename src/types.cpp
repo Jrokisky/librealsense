@@ -183,6 +183,7 @@ namespace librealsense
             CASE(DECIMATION_FILTER)
             CASE(THRESHOLD_FILTER)
             CASE(DISPARITY_FILTER)
+	    CASE(RANSAC_FILTER)
             CASE(SPATIAL_FILTER)
             CASE(TEMPORAL_FILTER)
             CASE(HOLE_FILLING_FILTER)

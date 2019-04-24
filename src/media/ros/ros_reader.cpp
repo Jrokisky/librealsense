@@ -8,6 +8,7 @@
 #include "proc/disparity-transform.h"
 #include "proc/decimation-filter.h"
 #include "proc/threshold.h" 
+#include "proc/ransac-filter.h" 
 #include "proc/spatial-filter.h"
 #include "proc/temporal-filter.h"
 #include "proc/hole-filling-filter.h"
@@ -1348,6 +1349,8 @@ namespace librealsense
             return disparity;
         case RS2_EXTENSION_SPATIAL_FILTER:
             return std::make_shared<ExtensionToType<RS2_EXTENSION_SPATIAL_FILTER>::type>();
+        case RS2_EXTENSION_RANSAC_FILTER:
+            return std::make_shared<ExtensionToType<RS2_EXTENSION_RANSAC_FILTER>::type>();
         case RS2_EXTENSION_TEMPORAL_FILTER:
             return std::make_shared<ExtensionToType<RS2_EXTENSION_TEMPORAL_FILTER>::type>();
         case RS2_EXTENSION_HOLE_FILLING_FILTER:

@@ -6,6 +6,7 @@
 #include "proc/disparity-transform.h"
 #include "proc/spatial-filter.h"
 #include "proc/temporal-filter.h"
+#include "proc/ransac-filter.h"
 #include "proc/hole-filling-filter.h"
 #include "proc/zero-order.h"
 #include "ros_writer.h"
@@ -501,6 +502,7 @@ namespace librealsense
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_THRESHOLD_FILTER);
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_DISPARITY_FILTER);
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_SPATIAL_FILTER);
+        RETURN_IF_EXTENSION(block, RS2_EXTENSION_RANSAC_FILTER);
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_TEMPORAL_FILTER);
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_HOLE_FILLING_FILTER);
         RETURN_IF_EXTENSION(block, RS2_EXTENSION_ZERO_ORDER_FILTER);

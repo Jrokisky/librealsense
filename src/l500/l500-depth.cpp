@@ -11,6 +11,7 @@
 #include "proc/threshold.h" 
 #include "proc/spatial-filter.h"
 #include "proc/temporal-filter.h"
+#include "proc/ransac-filter.h"
 #include "proc/hole-filling-filter.h"
 #include "proc/zero-order.h"
 
@@ -308,6 +309,7 @@ namespace librealsense
         auto depth_standart = get_depth_recommended_proccesing_blocks();
         res.insert(res.end(), depth_standart.begin(), depth_standart.end());
         res.push_back(std::make_shared<threshold>());
+        res.push_back(ransac_filter::create());
         res.push_back(std::make_shared<spatial_filter>());
         res.push_back(std::make_shared<temporal_filter>());
         res.push_back(std::make_shared<hole_filling_filter>());

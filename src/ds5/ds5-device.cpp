@@ -26,6 +26,7 @@
 #include "proc/threshold.h"
 #include "proc/disparity-transform.h"
 #include "proc/spatial-filter.h"
+#include "proc/ransac-filter.h"
 #include "proc/temporal-filter.h"
 #include "proc/hole-filling-filter.h"
 
@@ -716,6 +717,7 @@ namespace librealsense
     {
         auto res = get_depth_recommended_proccesing_blocks();
         res.push_back(std::make_shared<threshold>());
+        res.push_back(ransac_filter::create());
         res.push_back(std::make_shared<disparity_transform>(true));
         res.push_back(std::make_shared<spatial_filter>());
         res.push_back(std::make_shared<temporal_filter>());
