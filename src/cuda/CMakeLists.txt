@@ -6,5 +6,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/cuda-conversion.cuh"
         "${CMAKE_CURRENT_LIST_DIR}/cuda-pointcloud.cu"
         "${CMAKE_CURRENT_LIST_DIR}/cuda-pointcloud.cuh"
+        "${CMAKE_CURRENT_LIST_DIR}/cuda-ransac-filter.cu"
+        "${CMAKE_CURRENT_LIST_DIR}/cuda-ransac-filter.cuh"
         "${CMAKE_CURRENT_LIST_DIR}/rscuda_utils.cuh"        
 )

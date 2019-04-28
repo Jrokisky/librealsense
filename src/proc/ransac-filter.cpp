@@ -11,6 +11,9 @@
 #include "threshold.h"
 #include "image.h"
 
+#ifdef RS2_USE_CUDA
+#include "proc/cuda/cuda-ransac-filter.h"
+#endif
 
 namespace librealsense {
 
@@ -34,8 +37,7 @@ namespace librealsense {
 
     std::shared_ptr<ransac_filter> ransac_filter::create() {
         #ifdef RS2_USE_CUDA
-	    // TODO: update this. Based on cuda-pointcloud.
-	    return std::make_shared<librealsense::ransac_filter>();
+	    return std::make_shared<librealsense::ransac_filter_cuda>();
         #else
 	    return std::make_shared<librealsense::ransac_filter>();
 	#endif
@@ -129,7 +131,7 @@ namespace librealsense {
 	return inlier_count;
     }
 
-    void ransac_filter::highlight_plane(const bool plane_found, const bool* inliers, uint16_t* depth_data, uint16_t* new_data, int size) {
+    void ransac_filter::highlight_plane(const bool* inliers, uint16_t* depth_data, uint16_t* new_data, int size) {
 	for (int i = 0; i < size; i++) {
 	    if (inliers[i] ) {
                 new_data[i] = depth_data[i];
@@ -189,6 +191,35 @@ namespace librealsense {
 	return float4 {cpx, cpy, cpz, d};
     }
 
+    void ransac_filter::run_ransac(bool *inliers, const uint16_t * depth_data, float3 *points, int size, const rs2_intrinsics &depth_intrinsics, float depth_units)
+    {
+        // Initialize random seed.
+	srand((unsigned)time(0));
+
+        // Conver the depth data into 3d space.
+        ransac_filter::depth_to_points(reinterpret_cast<float *>(points), depth_data, depth_intrinsics, depth_units);
+	
+        // RANSAC settings.
+	int inlier_threshold_count = (((int)_threshold_percent) * size) / 100;
+	   
+	for (int j = 0; j < (int)_iterations; j++) {
+	    // Generate a random plane equation, if our last equation did not find a plane.
+	    if (!_plane_found) {
+                _equation = generate_equation(points, size);
+	    }
+
+	    // Get the inliers & count using this equation.
+	    int inlier_count = get_inliers(_equation, points, size, inliers, _distance_threshold);
+	    if (inlier_count >= inlier_threshold_count) {
+                _plane_found = true;
+                break;
+            }
+            else {
+                _plane_found = false;
+	    }
+	}
+    }
+
     rs2::frame ransac_filter::process_frame(const rs2::frame_source& source, const rs2::frame& f)
     {
 	if (!f.is<rs2::depth_frame>()) return f;
@@ -228,39 +259,16 @@ namespace librealsense {
 	    // Stores if a pixel is an inlier or not.
 	    bool* inliers = new bool[size];
 
-	    // Initialize random seed.
-	    srand((unsigned)time(0));
+            // Run Ransac.
+            run_ransac(inliers, depth_data, points, size, _depth_intrinsics, _depth_units); 
+            
+	    // Highlight our ground plane.
+ 	    highlight_plane(inliers, depth_data, new_data, size);
 
-	    // Conver the depth data into 3d space.
-            ransac_filter::depth_to_points(reinterpret_cast<float *>(points), depth_data, _depth_intrinsics, _depth_units);
-	
-	   // RANSAC settings.
-	   int inlier_threshold_count = (((int)_threshold_percent) * size) / 100;
-	   
-	   for (int j = 0; j < (int)_iterations; j++) {
-	       // Generate a random plane equation, if our last equation did not find a plane.
-	       if (!_plane_found) {
-	           _equation = generate_equation(points, size);
-	       }
-
-	       // Get the inliers & count using this equation.
-	       int inlier_count = get_inliers(_equation, points, size, inliers, _distance_threshold);
-	       if (inlier_count >= inlier_threshold_count) {
-                   _plane_found = true;
-                   break;
-               }
-               else {
-                   _plane_found = false;
-	       }
-	   }
-
-	   // Highlight our ground plane.
- 	   highlight_plane(_plane_found, inliers, depth_data, new_data, size);
-
-           // Free memory.
-	   delete[] points;
-	   delete[] inliers;
-	   return new_f;
+            // Free memory.
+	    delete[] points;
+	    delete[] inliers;
+	    return new_f;
 	}
 	return f;
     }
