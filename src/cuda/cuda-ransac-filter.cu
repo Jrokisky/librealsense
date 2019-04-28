@@ -4,7 +4,7 @@
 #include <iostream>
 #include "../../include/librealsense2/rsutil.h"
 
-void depth_to_3d_space(
+void depth_pixel_to_point(
     librealsense::float3 *point, 
     const rs2_intrinsics &depth_intrinsics, 
     int location,
@@ -80,11 +80,47 @@ void rscuda::generate_equation(
     float d = -(cpx * point_a.x + cpy * point_a.y + cpz * point_a.z);
     equation->x = cpx;
     equation->y = cpy;
-    equation->x = cpz; 
+    equation->z = cpz; 
+    equation->d = d;
 }
 
 __global__
-void rscuda::get_inliers(
+void get_inliers(
+    const librealsense::float4 *dev_equation, 
+    const float *dev_points, 
+    const int *dev_size, 
+    bool *dev_inliers, 
+    const float *dev_distance_threshold)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int j = i; j < (*dev_size); j += stride) {
+	librealsense::float3 curr_point = points[i];
+
+	// Holes in the image are considered outliers.
+	if (curr_point.z < 0.01f) {
+            dev_inliers[j] = false;
+	}
+	else {
+            // Compute distance between point and plane equation using the formula
+	    // at https://mathinsight.org/distance_point_plane.
+	    float numerator = fabs((dev_equation->x * curr_point.x) + (dev_equation->y * curr_point.y) + (dev_equation->z * curr_point.z) + dev_equation->w);
+	    float denominator = sqrtf((eq.x * eq.x) + (eq.y * eq.y) + (eq.z * eq.z));
+	    if ( denominator > 0.01f) {
+	        float distance = numerator / denominator;
+                if (distance < (*dev_distance_threshold)) {
+	            dev_inliers[j] = true;
+	        }
+	        else {
+	            dev_inliers[j] = false;
+	        }  
+            } else {
+	        dev_inliers[j] = false;
+	    }
+	}
+    }
+}
 
 void rscuda::ransac_filter_cuda(
     bool *inliers, 
@@ -124,6 +160,9 @@ void rscuda::ransac_filter_cuda(
     // Allocate Memory on the Device.
     result = cudaMalloc(&dev_points, count * sizeof(float) * 3);
     assert(result == cudaSuccess);
+    result = cudaMalloc(&dev_inliers, count * sizeof(bool));
+    assert(result == cudaSuccess);
+
     result = cudaMalloc(&dev_depth_data, count * sizeof(uint16_t));
     assert(result == cudaSuccess);
     result = cudaMalloc(&dev_intrin, sizeof(rs2_intrinsics));
@@ -134,41 +173,45 @@ void rscuda::ransac_filter_cuda(
     assert(result == cudaSuccess);
     result = cudaMalloc(&dev_size, sizeof(int));
     assert(result == cudaSuccess);
-    result = cudaMalloc(&dev_inliers, count * sizeof(bool));
-    assert(result == cudaSuccess);
     result = cudaMalloc(&dev_distance_threshold, sizeof(float));
     assert(result == cudaSuccess);
 
     // Copy values over to cuda device.
-    result = cudaMemcpy(dev_depth, depth_data, count * sizeof(uint16_t), cudaMemcpyHostToDevice);
+    result = cudaMemcpy(dev_depth_data, depth_data, count * sizeof(uint16_t), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
     result = cudaMemcpy(dev_intrin, &intrin, sizeof(rs2_intrinsics), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
     result = cudaMemcpy(dev_depth_scale, &depth_scale, sizeof(float), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
-
+    result = cudaMemcpy(dev_size, &size, sizeof(int), cudaMemcpyHostToDevice);
+    assert(result == cudaSuccess); 
+    result = cudaMemcpy(dev_distance_threshold, &distance_threshold, sizeof(float), cudaMemcpyHostToDevice);
+    assert(result == cudaSuccess); 
  
+    // Convert depth image to points.
     kernel_deproject_depth_cuda<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(dev_points, dev_intrin, dev_depth_data, dev_depth_scale);     
     cudaDeviceSynchronize();
 
     for (int j = 0; j < (int)iterations; j++) {
         // Generate a random plane equation, if our last equation did not find a plane.
 	if (!plane_found) {
-            generate_equation(depth_data, equation, size, depth_intrinsics, depth_scale);
+            generate_equation(depth_data, equation, size, depth_intrinsics, *depth_scale);
+	    result = cudaMemcpy(dev_equation, &equation, sizeof(librealsense::float4), cudaMemcpyHostToDevice);
+	    assert(result == cudaSuccess); 
 	}
 
-        // Get the inliers & count using this equation.
+        // Get the inliers.
 	get_inliers<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(dev_equation, dev_points, dev_size, dev_inliers, dev_distance_threshold);
         cudaDeviceSynchronize();
 
-        //copy inliers from device to host
+        // Copy inliers from device to host
+     	result = cudaMemcpy(inliers, dev_inliers, count * sizeof(bool), cudaMemcpyDeviceToHost);
+     	assert(result == cudaSuccess);
 
-
-
-        // loop through array of inliers
+        // loop through array of inliers and get a count.
         int inlier_count = 0;
         for (int i = 0; i < size; i++) {
-
+            if (inliers[i]) inlier_count++;
         }
 	if (inlier_count >= inlier_threshold_count) {
             plane_found = true;
@@ -178,6 +221,16 @@ void rscuda::ransac_filter_cuda(
             plane_found = false;
 	}
     }
+
+    // Free memory on CUDA.
+    cudaFree(dev_points);
+    cudaFree(dev_depth_data);
+    cudaFree(dev_intrin);
+    cudaFree(dev_depth_scale);
+    cudaFree(dev_equation);
+    cudaFree(dev_size);
+    cudaFree(dev_inliers);
+    cudaFree(dev_distance_threshold);
 }
 
 #endif

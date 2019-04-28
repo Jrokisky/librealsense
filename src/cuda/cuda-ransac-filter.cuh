@@ -24,7 +24,27 @@
 
 namespace rscuda
 {
-    void ransac_filter_cuda(bool *inliers, const uint16_t * depth_image, librealsense::float3 *points, int size, const rs2_intrinsics &depth_intrinsics, float depth_scale, bool &plane_found, librealsense::float4 &equation, const float distance_threshold, const float threshold_percent, const float iterations);
+
+    void rscuda::ransac_filter_cuda(
+    	bool *inliers, 
+    	const uint16_t * depth_data, 
+    	librealsense::float3 *points, 
+    	int size, 
+    	const rs2_intrinsics &depth_intrinsics, 
+    	float *depth_scale, 
+    	bool &plane_found, 
+    	librealsense::float4 &equation, 
+    	const float distance_threshold,
+    	const float threshold_percent,
+    	const float iterations);
+
+    void rscuda::generate_equation(
+    	const uint16_t *depth_data, 
+    	librealsense::float4 *equation, 
+    	int size,
+    	const rs2_intrinsics &depth_intrinsics, 
+    	float depth_scale);
+
 
 }
 
