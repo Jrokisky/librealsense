@@ -19,8 +19,8 @@ namespace librealsense {
 
     // The number of iterations to attempt to find a plane with valid inliers.
     const float iterations_min = 1.0f;
-    const float iterations_max = 50.0f;
-    const float iterations_default = 25.0f;
+    const float iterations_max = 200.0f;
+    const float iterations_default = 50.0f;
     const float iterations_step = 1.0f;
 
     // The distance that a point can be from the plane to be considered an inlier.
@@ -222,7 +222,6 @@ namespace librealsense {
                 _plane_found = false;
 	    }
 	}
-        LOG_WARNING("Equation = x:" << _equation.x << " y:" << _equation.y << " z:" << _equation.z << " w:" << _equation.w);
     }
 
     rs2::frame ransac_filter::process_frame(const rs2::frame_source& source, const rs2::frame& f)
