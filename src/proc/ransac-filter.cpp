@@ -1,6 +1,8 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2017 Intel Corporation. All Rights Reserved.
 
+#include <chrono>
+
 #include "../include/librealsense2/rs.hpp"
 #include "../include/librealsense2/rsutil.h"
 
@@ -262,9 +264,14 @@ namespace librealsense {
 	    // Stores if a pixel is an inlier or not.
 	    bool* inliers = new bool[size];
 
+            auto start = std::chrono::high_resolution_clock::now();
             // Run Ransac.
             run_ransac(inliers, depth_data, size, _depth_intrinsics, _depth_units); 
             
+            auto stop = std::chrono::high_resolution_clock::now(); 
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
+            LOG_WARNING("Execution Time:\t\t" << duration.count()); 
+
 	    // Highlight our ground plane.
  	    highlight_plane(inliers, depth_data, new_data, size);
 
