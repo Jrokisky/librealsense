@@ -191,11 +191,12 @@ namespace librealsense {
 	return float4 {cpx, cpy, cpz, d};
     }
 
-    void ransac_filter::run_ransac(bool *inliers, const uint16_t * depth_data, float3 *points, int size, const rs2_intrinsics &depth_intrinsics, float depth_units)
+    void ransac_filter::run_ransac(bool *inliers, const uint16_t * depth_data, int size, const rs2_intrinsics &depth_intrinsics, float depth_units)
     {
         // Initialize random seed.
 	srand((unsigned)time(0));
 
+	float3* points = new float3[size];
         // Conver the depth data into 3d space.
         ransac_filter::depth_to_points(reinterpret_cast<float *>(points), depth_data, depth_intrinsics, depth_units);
 	
@@ -254,19 +255,17 @@ namespace librealsense {
 
 	    // Pixel area of the depth image.
 	    int size = width * height;
-	    float3* points = new float3[size];
 
 	    // Stores if a pixel is an inlier or not.
 	    bool* inliers = new bool[size];
 
             // Run Ransac.
-            run_ransac(inliers, depth_data, points, size, _depth_intrinsics, _depth_units); 
+            run_ransac(inliers, depth_data, size, _depth_intrinsics, _depth_units); 
             
 	    // Highlight our ground plane.
  	    highlight_plane(inliers, depth_data, new_data, size);
 
             // Free memory.
-	    delete[] points;
 	    delete[] inliers;
 	    return new_f;
 	}

@@ -11,7 +11,7 @@ namespace librealsense
     public:
         ransac_filter_cuda();
     private:
-        void run_ransac(bool *inliers, const uint16_t * depth_image, float3 *points, int size, const rs2_intrinsics &depth_intrinsics, float depth_scale);
+        void run_ransac(bool *inliers, const uint16_t * depth_image, int size, const rs2_intrinsics &depth_intrinsics, float depth_scale);
 
     };
 }

@@ -3,6 +3,49 @@
 #include "cuda-ransac-filter.cuh"
 #include <iostream>
 #include "../../include/librealsense2/rsutil.h"
+#include "../types.h"
+#include "rscuda_utils.cuh"
+
+    __device__ static void rs2_deproject_pixel_to_point_cuda(float point[3], const struct rs2_intrinsics * intrin, const float pixel[2], float depth)
+    {
+        assert(intrin->model != RS2_DISTORTION_MODIFIED_BROWN_CONRADY); // Cannot deproject from a forward-distorted image
+        assert(intrin->model != RS2_DISTORTION_FTHETA); // Cannot deproject to an ftheta image
+        //assert(intrin->model != RS2_DISTORTION_BROWN_CONRADY); // Cannot deproject to an brown conrady model
+
+        float x = (pixel[0] - intrin->ppx) / intrin->fx;
+        float y = (pixel[1] - intrin->ppy) / intrin->fy;
+
+        if (intrin->model == RS2_DISTORTION_INVERSE_BROWN_CONRADY)
+        {
+            float r2 = x * x + y * y;
+            float f = 1 + intrin->coeffs[0] * r2 + intrin->coeffs[1] * r2*r2 + intrin->coeffs[4] * r2*r2*r2;
+            float ux = x * f + 2 * intrin->coeffs[2] * x*y + intrin->coeffs[3] * (r2 + 2 * x*x);
+            float uy = y * f + 2 * intrin->coeffs[3] * x*y + intrin->coeffs[2] * (r2 + 2 * y*y);
+            x = ux;
+            y = uy;
+        }
+        point[0] = depth * x;
+        point[1] = depth * y;
+        point[2] = depth;
+    }
+    __global__
+    void rs2_kernel_deproject_depth_cuda(float * points, const rs2_intrinsics* intrin, const uint16_t * depth, float depth_scale)
+    {
+        int i = blockDim.x * blockIdx.x + threadIdx.x;
+    
+        if (i >= (*intrin).height * (*intrin).width) {
+            return;
+        }
+        int stride = blockDim.x * gridDim.x;
+        int a, b;
+    
+        for (int j = i; j < (*intrin).height * (*intrin).width; j += stride) {
+            b = j / (*intrin).width;
+            a = j - b * (*intrin).width;
+            const float pixel[] = { (float)a, (float)b };
+           rs2_deproject_pixel_to_point_cuda(points + j * 3, intrin, pixel, depth_scale * depth[j]);
+        }    
+    }
 
 void depth_pixel_to_point(
     librealsense::float3 *point, 
@@ -12,9 +55,8 @@ void depth_pixel_to_point(
 {
     // Convert location to x, y coordinates.
     int width = depth_intrinsics.width;
-    int height = depth_intrinsics.height;
-    const float pixel[] = { ((float)location % width), ((float)location / width) };
-    librealsense::rs2_deproject_pixel_to_point(point, depth_intrinsics, pixel, depth);
+    const float pixel[] = { (float) (location % width), (float) (location / width) };
+    rs2_deproject_pixel_to_point(reinterpret_cast<float *>(point), &depth_intrinsics, pixel, depth);
 }
 
 /**
@@ -44,11 +86,11 @@ void rscuda::generate_equation(
 	}
 
         // For each of our points, get their location in 3d space.
-        depth_to_3d_space(&point_a, depth_intrinsics, a, depth_scale * depth_data[a])
-	float3 point_b = {};
-        depth_to_3d_space(&point_b, depth_intrinsics, b, depth_scale * depth_data[b])
-	float3 point_c = {};
-        depth_to_3d_space(&point_c, depth_intrinsics, c, depth_scale * depth_data[c])
+        depth_pixel_to_point(&point_a, depth_intrinsics, a, depth_scale * depth_data[a]);
+	librealsense::float3 point_b = {};
+        depth_pixel_to_point(&point_b, depth_intrinsics, b, depth_scale * depth_data[b]);
+	librealsense::float3 point_c = {};
+        depth_pixel_to_point(&point_c, depth_intrinsics, c, depth_scale * depth_data[c]);
 
 	// Don't use holes in the image with depth of 0.0.
 	if (point_a.z < 0.01f) continue;
@@ -81,13 +123,13 @@ void rscuda::generate_equation(
     equation->x = cpx;
     equation->y = cpy;
     equation->z = cpz; 
-    equation->d = d;
+    equation->w = d;
 }
 
 __global__
 void get_inliers(
-    const librealsense::float4 *dev_equation, 
-    const float *dev_points, 
+    const float4 *dev_equation, 
+    const float3 *dev_points, 
     const int *dev_size, 
     bool *dev_inliers, 
     const float *dev_distance_threshold)
@@ -96,7 +138,7 @@ void get_inliers(
     int stride = blockDim.x * gridDim.x;
 
     for (int j = i; j < (*dev_size); j += stride) {
-	librealsense::float3 curr_point = points[i];
+	float3 curr_point = dev_points[i];
 
 	// Holes in the image are considered outliers.
 	if (curr_point.z < 0.01f) {
@@ -106,7 +148,7 @@ void get_inliers(
             // Compute distance between point and plane equation using the formula
 	    // at https://mathinsight.org/distance_point_plane.
 	    float numerator = fabs((dev_equation->x * curr_point.x) + (dev_equation->y * curr_point.y) + (dev_equation->z * curr_point.z) + dev_equation->w);
-	    float denominator = sqrtf((eq.x * eq.x) + (eq.y * eq.y) + (eq.z * eq.z));
+	    float denominator = sqrtf((dev_equation->x * dev_equation->x) + (dev_equation->y * dev_equation->y) + (dev_equation->z * dev_equation->z));
 	    if ( denominator > 0.01f) {
 	        float distance = numerator / denominator;
                 if (distance < (*dev_distance_threshold)) {
@@ -125,7 +167,6 @@ void get_inliers(
 void rscuda::ransac_filter_cuda(
     bool *inliers, 
     const uint16_t * depth_data, 
-    librealsense::float3 *points, 
     int size, 
     const rs2_intrinsics &depth_intrinsics, 
     float *depth_scale, 
@@ -146,11 +187,10 @@ void rscuda::ransac_filter_cuda(
     int numBlocks = count / RS2_CUDA_THREADS_PER_BLOCK;
 
     // Declare device variables.
-    float *dev_points = 0;
+    float3 *dev_points = 0;
     uint16_t *dev_depth_data = 0;
     rs2_intrinsics* dev_intrin = 0;
-    float *dev_depth_scale = 0;
-    librealsense::float4 *dev_equation = 0;
+    float4 *dev_equation = 0;
     int *dev_size = 0;
     bool *dev_inliers = 0;
     float *dev_distance_threshold = 0;
@@ -158,7 +198,7 @@ void rscuda::ransac_filter_cuda(
     cudaError_t result;
 
     // Allocate Memory on the Device.
-    result = cudaMalloc(&dev_points, count * sizeof(float) * 3);
+    result = cudaMalloc(&dev_points, count * sizeof(float3));
     assert(result == cudaSuccess);
     result = cudaMalloc(&dev_inliers, count * sizeof(bool));
     assert(result == cudaSuccess);
@@ -167,9 +207,7 @@ void rscuda::ransac_filter_cuda(
     assert(result == cudaSuccess);
     result = cudaMalloc(&dev_intrin, sizeof(rs2_intrinsics));
     assert(result == cudaSuccess);
-    result = cudaMalloc(&dev_depth_scale, sizeof(float));
-    assert(result == cudaSuccess);
-    result = cudaMalloc(&dev_equation, sizeof(librealsense::float4));
+    result = cudaMalloc(&dev_equation, sizeof(float4));
     assert(result == cudaSuccess);
     result = cudaMalloc(&dev_size, sizeof(int));
     assert(result == cudaSuccess);
@@ -179,9 +217,7 @@ void rscuda::ransac_filter_cuda(
     // Copy values over to cuda device.
     result = cudaMemcpy(dev_depth_data, depth_data, count * sizeof(uint16_t), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
-    result = cudaMemcpy(dev_intrin, &intrin, sizeof(rs2_intrinsics), cudaMemcpyHostToDevice);
-    assert(result == cudaSuccess); 
-    result = cudaMemcpy(dev_depth_scale, &depth_scale, sizeof(float), cudaMemcpyHostToDevice);
+    result = cudaMemcpy(dev_intrin, &depth_intrinsics, sizeof(rs2_intrinsics), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
     result = cudaMemcpy(dev_size, &size, sizeof(int), cudaMemcpyHostToDevice);
     assert(result == cudaSuccess); 
@@ -189,14 +225,14 @@ void rscuda::ransac_filter_cuda(
     assert(result == cudaSuccess); 
  
     // Convert depth image to points.
-    kernel_deproject_depth_cuda<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(dev_points, dev_intrin, dev_depth_data, dev_depth_scale);     
+    rs2_kernel_deproject_depth_cuda<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(reinterpret_cast<float *>(dev_points), dev_intrin, dev_depth_data, *depth_scale);
     cudaDeviceSynchronize();
 
     for (int j = 0; j < (int)iterations; j++) {
         // Generate a random plane equation, if our last equation did not find a plane.
 	if (!plane_found) {
-            generate_equation(depth_data, equation, size, depth_intrinsics, *depth_scale);
-	    result = cudaMemcpy(dev_equation, &equation, sizeof(librealsense::float4), cudaMemcpyHostToDevice);
+            generate_equation(depth_data, &equation, size, depth_intrinsics, *depth_scale);
+	    result = cudaMemcpy(dev_equation, &equation, sizeof(float4), cudaMemcpyHostToDevice);
 	    assert(result == cudaSuccess); 
 	}
 
@@ -226,7 +262,6 @@ void rscuda::ransac_filter_cuda(
     cudaFree(dev_points);
     cudaFree(dev_depth_data);
     cudaFree(dev_intrin);
-    cudaFree(dev_depth_scale);
     cudaFree(dev_equation);
     cudaFree(dev_size);
     cudaFree(dev_inliers);

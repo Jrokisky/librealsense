@@ -10,10 +10,10 @@ namespace librealsense
 {
     ransac_filter_cuda::ransac_filter_cuda() : ransac_filter() {}
 
-    void ransac_filter_cuda::run_ransac(bool *inliers, const uint16_t * depth_image, float3 *points, int size, const rs2_intrinsics &depth_intrinsics, float depth_scale)
+    void ransac_filter_cuda::run_ransac(bool *inliers, const uint16_t * depth_image, int size, const rs2_intrinsics &depth_intrinsics, float depth_scale)
     {
 #ifdef RS2_USE_CUDA
-        rscuda::ransac_filter_cuda(inliers, depth_image, points, size, depth_intrinsics, &depth_scale, _plane_found, _equation, _distance_threshold, _threshold_percent, _iterations);
+        rscuda::ransac_filter_cuda(inliers, depth_image, size, depth_intrinsics, &depth_scale, _plane_found, _equation, _distance_threshold, _threshold_percent, _iterations);
 #endif
     }
 
