@@ -232,9 +232,9 @@ void rscuda::ransac_filter_cuda(
         // Generate a random plane equation, if our last equation did not find a plane.
 	if (!(*plane_found)) {
             generate_equation(depth_data, equation, size, depth_intrinsics, *depth_scale);
-	    result = cudaMemcpy(dev_equation, equation, sizeof(float4), cudaMemcpyHostToDevice);
-	    assert(result == cudaSuccess); 
 	}
+	result = cudaMemcpy(dev_equation, equation, sizeof(float4), cudaMemcpyHostToDevice);
+	assert(result == cudaSuccess); 
 
         // Get the inliers.
 	get_inliers<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(dev_equation, dev_points, dev_size, dev_inliers, dev_distance_threshold);
@@ -250,15 +250,15 @@ void rscuda::ransac_filter_cuda(
             if (inliers[i]) inlier_count++;
         }
 	if (inlier_count >= inlier_threshold_count) {
+            //LOG_WARNING("=======================================================================plane_found");
             (*plane_found) = true;
             break;
         }
         else {
+            //LOG_WARNING("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$plane_not_found");
             (*plane_found) = false;
 	}
     }
-
-    LOG_WARNING("Equation = x:" << equation->x << " y:" << equation->y << " z:" << equation->z << " w:" << equation->w);
 
     // Free memory on CUDA.
     cudaFree(dev_points);
