@@ -139,7 +139,7 @@ namespace librealsense {
 	}
     }
 
-    float4 ransac_filter::generate_equation(const float3* points, int size) {
+    void ransac_filter::generate_equation(float4 *equation, const float3* points, int size) {
 	float3 vector_ab;
 	float3 vector_ac;
 	float3 point_a;
@@ -188,7 +188,10 @@ namespace librealsense {
 	// Use the cross product and point a to find the constant in the plane equation.
 	float d = -(cpx * point_a.x + cpy * point_a.y + cpz * point_a.z);
 
-	return float4 {cpx, cpy, cpz, d};
+        equation->x = cpx;
+        equation->y =cpy;
+        equation->z = cpz;
+        equation->w = d;
     }
 
     void ransac_filter::run_ransac(bool *inliers, const uint16_t * depth_data, int size, const rs2_intrinsics &depth_intrinsics, float depth_units)
@@ -206,7 +209,7 @@ namespace librealsense {
 	for (int j = 0; j < (int)_iterations; j++) {
 	    // Generate a random plane equation, if our last equation did not find a plane.
 	    if (!_plane_found) {
-                _equation = generate_equation(points, size);
+                generate_equation(&_equation, points, size);
 	    }
 
 	    // Get the inliers & count using this equation.

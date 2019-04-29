@@ -36,7 +36,7 @@ namespace librealsense {
 
     private:
         void highlight_plane(const bool* inliers, uint16_t* depth_data, uint16_t* new_data, int size);
-        float4 generate_equation(const float3* points, int size);
+        void generate_equation(float4* equation, const float3* points, int size);
     	int get_inliers(const float4& eq, const float3* points, int size, bool* inliers, float threshold);
        void depth_to_points(float * points, const uint16_t * depth_image, const rs2_intrinsics &depth_intrinsics, float depth_scale);
         rs2::stream_profile     _source_stream_profile;

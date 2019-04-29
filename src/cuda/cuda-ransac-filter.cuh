@@ -30,8 +30,8 @@ namespace rscuda
     	int size, 
     	const rs2_intrinsics &depth_intrinsics, 
     	float *depth_scale, 
-    	bool &plane_found, 
-    	librealsense::float4 &equation, 
+    	bool *plane_found, 
+    	librealsense::float4 *equation, 
     	const float distance_threshold,
     	const float threshold_percent,
     	const float iterations);
