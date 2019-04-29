@@ -222,6 +222,7 @@ namespace librealsense {
                 _plane_found = false;
 	    }
 	}
+        LOG_WARNING("Equation = x:" << _equation.x << " y:" << _equation.y << " z:" << _equation.z << " w:" << _equation.w);
     }
 
     rs2::frame ransac_filter::process_frame(const rs2::frame_source& source, const rs2::frame& f)
