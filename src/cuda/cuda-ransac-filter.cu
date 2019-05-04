@@ -6,46 +6,48 @@
 #include "../types.h"
 #include "rscuda_utils.cuh"
 
-    __device__ static void rs2_deproject_pixel_to_point_cuda(float point[3], const struct rs2_intrinsics * intrin, const float pixel[2], float depth)
-    {
-        assert(intrin->model != RS2_DISTORTION_MODIFIED_BROWN_CONRADY); // Cannot deproject from a forward-distorted image
-        assert(intrin->model != RS2_DISTORTION_FTHETA); // Cannot deproject to an ftheta image
-        //assert(intrin->model != RS2_DISTORTION_BROWN_CONRADY); // Cannot deproject to an brown conrady model
+// Pulled from Librealsense.
+__device__ static void rs2_deproject_pixel_to_point_cuda(float point[3], const struct rs2_intrinsics * intrin, const float pixel[2], float depth)
+{
+    assert(intrin->model != RS2_DISTORTION_MODIFIED_BROWN_CONRADY); // Cannot deproject from a forward-distorted image
+    assert(intrin->model != RS2_DISTORTION_FTHETA); // Cannot deproject to an ftheta image
 
-        float x = (pixel[0] - intrin->ppx) / intrin->fx;
-        float y = (pixel[1] - intrin->ppy) / intrin->fy;
+    float x = (pixel[0] - intrin->ppx) / intrin->fx;
+    float y = (pixel[1] - intrin->ppy) / intrin->fy;
 
-        if (intrin->model == RS2_DISTORTION_INVERSE_BROWN_CONRADY)
-        {
-            float r2 = x * x + y * y;
-            float f = 1 + intrin->coeffs[0] * r2 + intrin->coeffs[1] * r2*r2 + intrin->coeffs[4] * r2*r2*r2;
-            float ux = x * f + 2 * intrin->coeffs[2] * x*y + intrin->coeffs[3] * (r2 + 2 * x*x);
-            float uy = y * f + 2 * intrin->coeffs[3] * x*y + intrin->coeffs[2] * (r2 + 2 * y*y);
-            x = ux;
-            y = uy;
-        }
-        point[0] = depth * x;
-        point[1] = depth * y;
-        point[2] = depth;
-    }
-    __global__
-    void rs2_kernel_deproject_depth_cuda(float * points, const rs2_intrinsics* intrin, const uint16_t * depth, float depth_scale)
+    if (intrin->model == RS2_DISTORTION_INVERSE_BROWN_CONRADY)
     {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-    
-        if (i >= (*intrin).height * (*intrin).width) {
-            return;
-        }
-        int stride = blockDim.x * gridDim.x;
-        int a, b;
-    
-        for (int j = i; j < (*intrin).height * (*intrin).width; j += stride) {
-            b = j / (*intrin).width;
-            a = j - b * (*intrin).width;
-            const float pixel[] = { (float)a, (float)b };
-           rs2_deproject_pixel_to_point_cuda(points + j * 3, intrin, pixel, depth_scale * depth[j]);
-        }    
+        float r2 = x * x + y * y;
+        float f = 1 + intrin->coeffs[0] * r2 + intrin->coeffs[1] * r2*r2 + intrin->coeffs[4] * r2*r2*r2;
+        float ux = x * f + 2 * intrin->coeffs[2] * x*y + intrin->coeffs[3] * (r2 + 2 * x*x);
+        float uy = y * f + 2 * intrin->coeffs[3] * x*y + intrin->coeffs[2] * (r2 + 2 * y*y);
+        x = ux;
+        y = uy;
     }
+    point[0] = depth * x;
+    point[1] = depth * y;
+    point[2] = depth;
+}
+
+// Pulled from Librealsense.
+__global__
+void rs2_kernel_deproject_depth_cuda(float * points, const rs2_intrinsics* intrin, const uint16_t * depth, float depth_scale)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    if (i >= (*intrin).height * (*intrin).width) {
+        return;
+    }
+    int stride = blockDim.x * gridDim.x;
+    int a, b;
+    
+    for (int j = i; j < (*intrin).height * (*intrin).width; j += stride) {
+        b = j / (*intrin).width;
+        a = j - b * (*intrin).width;
+        const float pixel[] = { (float)a, (float)b };
+        rs2_deproject_pixel_to_point_cuda(points + j * 3, intrin, pixel, depth_scale * depth[j]);
+    }    
+}
 
 void depth_pixel_to_point(
     librealsense::float3 *point, 
@@ -139,7 +141,6 @@ void get_inliers(
 
     for (int j = i; j < (*dev_size); j += stride) {
 	float3 curr_point = dev_points[i];
-
 	// Holes in the image are considered outliers.
 	if (curr_point.z < 0.01f) {
             dev_inliers[j] = false;
@@ -227,6 +228,9 @@ void rscuda::ransac_filter_cuda(
     // Convert depth image to points.
     rs2_kernel_deproject_depth_cuda<<<numBlocks, RS2_CUDA_THREADS_PER_BLOCK>>>(reinterpret_cast<float *>(dev_points), dev_intrin, dev_depth_data, *depth_scale);
     cudaDeviceSynchronize();
+    bool * best_inliers;
+    best_inliers = new bool[size];
+    int prev_best = 0;
 
     for (int j = 0; j < (int)iterations; j++) {
         // Generate a random plane equation, if our last equation did not find a plane.
@@ -248,6 +252,7 @@ void rscuda::ransac_filter_cuda(
         int inlier_count = 0;
         for (int i = 0; i < size; i++) {
             if (inliers[i]) inlier_count++;
+            best_inliers[i] = inliers[i];
         }
 	if (inlier_count >= inlier_threshold_count) {
             //LOG_WARNING("=======================================================================plane_found");
@@ -256,8 +261,16 @@ void rscuda::ransac_filter_cuda(
         }
         else {
             //LOG_WARNING("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$plane_not_found");
+            prev_best = inlier_count;
             (*plane_found) = false;
 	}
+    }
+
+    // If no plane found, use the best solution we did find.
+    if (!(*plane_found)) {
+        for (int i = 0; i < size; i++) {
+            inliers[i] = best_inliers[i];
+        }
     }
 
     // Free memory on CUDA.

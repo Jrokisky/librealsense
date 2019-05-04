@@ -270,7 +270,7 @@ namespace librealsense {
             
             auto stop = std::chrono::high_resolution_clock::now(); 
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
-            LOG_WARNING("Execution Time:\t\t" << duration.count()); 
+            LOG_WARNING("Execution Time:\t\t" << (int) duration.count()); 
 
 	    // Highlight our ground plane.
  	    highlight_plane(inliers, depth_data, new_data, size);
